@@ -12,7 +12,7 @@ public class TokenAnalyser {
     //符号表
     public Map<String,Variable> symbolTable;
     //每一句的token集合
-    public List<List<String>> tokenList;
+    public Map<Integer,List<String>> tokenList;
     //等待被输出的变量
     public List<String> waitToBeWritten;
     //identifier的类型
@@ -42,7 +42,7 @@ public class TokenAnalyser {
 
     public TokenAnalyser(){
         symbolTable=new HashMap<>();
-        tokenList=new ArrayList<>();
+        tokenList=new HashMap<>();
         stateDefinitionTransformTable =new ArrayList<>();
         stateExpressionTransformTable =new ArrayList<>();
         waitToBeWritten=new ArrayList<>();
@@ -71,14 +71,14 @@ public class TokenAnalyser {
         stateExpressionTransformTable.add(new State(3,new typeOfChar[]{typeOfChar.BLANK,typeOfChar.LETTER,typeOfChar.NUMBER,typeOfChar.KUOHAO,typeOfChar.OTHER},new int[]{3,10,4,12,8}));
         stateExpressionTransformTable.add(new State(4,new typeOfChar[]{typeOfChar.NUMBER,typeOfChar.ZERO,typeOfChar.DOT,typeOfChar.OTHER,typeOfChar.BLANK,typeOfChar.SEMICOLON,typeOfChar.KUOHAO},new int[]{4,4,5,8,7,9,12}));
         stateExpressionTransformTable.add(new State(5,new typeOfChar[]{typeOfChar.NUMBER,typeOfChar.ZERO},new int[]{6,6}));
-        stateExpressionTransformTable.add(new State(6,new typeOfChar[]{typeOfChar.NUMBER,typeOfChar.ZERO,typeOfChar.BLANK,typeOfChar.OTHER},new int[]{6,6,7,8}));
+        stateExpressionTransformTable.add(new State(6,new typeOfChar[]{typeOfChar.NUMBER,typeOfChar.ZERO,typeOfChar.BLANK,typeOfChar.OTHER,typeOfChar.KUOHAO,typeOfChar.SEMICOLON},new int[]{6,6,7,8,12,9}));
         stateExpressionTransformTable.add(new State(7,new typeOfChar[]{typeOfChar.BLANK,typeOfChar.OTHER,typeOfChar.SEMICOLON},new int[]{7,8,9}));
         stateExpressionTransformTable.add(new State(8,new typeOfChar[]{typeOfChar.BLANK,typeOfChar.LETTER,typeOfChar.NUMBER,typeOfChar.SEMICOLON,typeOfChar.KUOHAO},new int[]{8,10,4,9,12}));
         //终态
         stateExpressionTransformTable.add(new State(9,new typeOfChar[]{},new int[]{}));
-        stateExpressionTransformTable.add(new State(10,new typeOfChar[]{typeOfChar.BLANK,typeOfChar.LETTER,typeOfChar.NUMBER,typeOfChar.ZERO,typeOfChar.SEMICOLON,typeOfChar.KUOHAO},new int[]{11,10,10,10,9,12}));
+        stateExpressionTransformTable.add(new State(10,new typeOfChar[]{typeOfChar.BLANK,typeOfChar.LETTER,typeOfChar.NUMBER,typeOfChar.ZERO,typeOfChar.SEMICOLON,typeOfChar.KUOHAO,typeOfChar.OTHER},new int[]{11,10,10,10,9,12,8}));
         stateExpressionTransformTable.add(new State(11,new typeOfChar[]{typeOfChar.BLANK,typeOfChar.OTHER},new int[]{11,8}));
-        stateExpressionTransformTable.add(new State(12,new typeOfChar[]{typeOfChar.KUOHAO,typeOfChar.NUMBER,typeOfChar.LETTER,typeOfChar.SEMICOLON,typeOfChar.OTHER},new int[]{12,4,10,9,8}));
+        stateExpressionTransformTable.add(new State(12,new typeOfChar[]{typeOfChar.KUOHAO,typeOfChar.NUMBER,typeOfChar.LETTER,typeOfChar.SEMICOLON,typeOfChar.OTHER,typeOfChar.BLANK},new int[]{12,4,10,9,8,12}));
     }
 
     //获取移进字符的类型
@@ -95,12 +95,11 @@ public class TokenAnalyser {
             return typeOfChar.EQUAL;
         }else if(c==';'){
             return typeOfChar.SEMICOLON;
-        } else if(c==' '){
+        } else if(c==' '||c=='\uFEFF'){//我也不知道后面一个是什么鬼,貌似是txt文件换了个系统出现的问题
             return typeOfChar.BLANK;
-
         } else if(c=='('||c==')'){
             return typeOfChar.KUOHAO;
-        } else if(c=='+'||c=='-'||c=='*'||c=='/'||c=='+'||c=='-'){
+        } else if(c=='+'||c=='-'||c=='*'||c=='/'){
             return typeOfChar.OTHER;
         }else {
             return typeOfChar.NONE;
@@ -116,17 +115,21 @@ public class TokenAnalyser {
         }else if(res==99){
             temp=returnDefination.trim();
             temp=temp.replaceAll(";","");
-            temp=temp.replaceAll("^float ","");
+            temp=temp.replaceFirst("^float ","");
             temp=temp.replaceAll(" ","");
             System.out.println("声明的float变量名为:"+temp);
-            symbolTable.put(temp,new Variable(temp));
+            Variable v=new Variable(temp);
+            v.setType(idenType.FLOAT);
+            symbolTable.put(temp,v);
         }else if(res==98){
             temp=returnDefination.trim();
             temp=temp.replaceAll(";","");
-            temp=temp.replaceAll("^int ","");
+            temp=temp.replaceFirst("^int ","");
             temp=temp.replaceAll(" ","");
             System.out.println("声明的int变量名为:"+temp);
-            symbolTable.put(temp,new Variable(temp));
+            Variable v=new Variable(temp);
+            v.setType(idenType.INT);
+            symbolTable.put(temp,v);
         }else if(res==1){
             System.out.println("第"+lineNumber+"行声明语句有问题");
             System.exit(0);
@@ -210,6 +213,7 @@ public class TokenAnalyser {
             if(res==3){
                 System.out.println("第"+lineNumber+"表达式中的变量名不符合规则");
                 result=false;
+                System.exit(-1);
             }
         }
         return result;
@@ -275,6 +279,7 @@ public class TokenAnalyser {
                     if(symbolTable.get(sb.toString())==null){
                         System.out.println("第"+lineNumber+"行左侧变量"+sb.toString()+"未定义");
                         result=2;
+                        System.exit(-1);
                         return result;
                     }else{
                         list.add(sb.toString());
@@ -329,7 +334,7 @@ public class TokenAnalyser {
         if(currentState==9) {
             result = 1;
             list.add(";");
-            tokenList.add(list);
+            tokenList.put(lineNumber,list);
         }else{
             result=-1;
         }
@@ -345,22 +350,33 @@ public class TokenAnalyser {
         boolean resultOfDefinition=false;
         int i=0;
         for (String line:lines) {
+            //是否已被'.'结束
+            if (allOver) {
+                break;
+            }
             for(String expr:line.split(";")) {
-                if(i!=lines.length-1)
+                if(i!=lines.length-1&&!expr.matches("(.)*(\\.)")){
                     expr = expr + ";";
+                }else{
+                	if(!expr.matches("(.)*(\\.)")){
+                		expr=expr+".";
+                	}
+                }
                 i++;
                 System.out.println("词法分析器正在分析第" + lineNumber + "行:"+expr);
 
-                char[] words = expr.toCharArray();
-                //是否已被'.'结束
-                if (allOver) {
-                    break;
-                }
+                //去除一个奇怪字符
+                expr=expr.replaceAll("\uFEFF","");
+                expr=expr.replaceAll("\r","");
+                char[] words = expr.trim().toCharArray();
                 if (expr.matches("^write\\((([a-z]|[A-Z])(([0-9]|[A-Z]|[a-z])*))\\)(\\.|;)")) {
-                    if (expr.replaceFirst("write\\(","").replace(").","").matches("([a-z]|[A-Z])([0-9]|[A-Z]|[a-z])*")) {
-                        waitToBeWritten.add(expr.replaceFirst("write\\(","").replace(").",""));
+                    if (expr.replaceFirst("write\\(","").replace(");","").replace(").", "").matches("([a-z]|[A-Z])([0-9]|[A-Z]|[a-z])*")) {
+                        String s=expr.replaceFirst("write\\(","").replace(").","").replace(");","");
+                        System.out.println(s);
+                    	waitToBeWritten.add(s);
                     }else{
                         System.out.println("第"+lineNumber+"行"+expr+"是什么鬼");
+                        System.exit(-1);
                     }
                 }else
                 {
@@ -368,6 +384,7 @@ public class TokenAnalyser {
                         if (!isExpression_Father(expr.trim().toCharArray())) {
                             //什么语句都不是
                             System.out.println("第"+lineNumber+"行什么语句都不是");
+                            System.exit(-1);
                         }
                     }
                 }
@@ -376,36 +393,6 @@ public class TokenAnalyser {
         }
         System.out.println("需要被输出的变量有"+waitToBeWritten);
         System.out.println("需要被输出的token有"+tokenList);
-    }
-
-
-    class Variable{
-
-        public void setName(String name) {
-            this.name = name;
-        }
-
-        public void setType(idenType type) {
-            this.type = type;
-        }
-
-        public void setValue(double value) {
-            this.value = value;
-        }
-
-        String name="";
-        idenType type=idenType.INT;
-
-        public void setSet(boolean set) {
-            isSet = set;
-        }
-
-        boolean isSet=false;
-        double value=0;
-
-        public Variable(String name){
-            this.name=name;
-        }
     }
 
     class State{

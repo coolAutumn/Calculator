@@ -50,7 +50,17 @@ public class Main {
         Main m=new Main();
         m.ReadExprFromFile();
         m.getExpr();
+        m.str_get=m.str_get.replaceAll("\uFEFF","");
+        m.str_get=m.str_get.replaceAll("\r","");
+        System.out.println(m.str_get);
         TokenAnalyser tokenAnalyser=new TokenAnalyser();
         tokenAnalyser.Analyser(m.str_get);
+        SemanticsAnalyser semanticsAnalyser = new SemanticsAnalyser();
+        semanticsAnalyser.analyse(m.str_get);
+        Caculator caculator= new Caculator();
+        caculator.importSymbolTable(tokenAnalyser.symbolTable);
+        caculator.execute(m.str_get);
+        OutPut output = new OutPut(tokenAnalyser.waitToBeWritten, caculator.symbolTable);
+        output.outPut();
     }
 }
